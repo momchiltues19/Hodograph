@@ -1,0 +1,16 @@
+#deCasteljau {
+	width:40%;
+    height:80%;
+	border:2px solid #000000;
+	background: #ffffff;
+}
+#hodograph {
+	width:40%;
+    height:80%;
+	border:2px solid #9040ff;
+	background: #fbf1ff;
+}
+
+body {
+	background: #eafbff;
+} 
