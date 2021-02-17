@@ -10,6 +10,7 @@ var movingControlPointIdx = INVALID_IDX;
 var movingControlPoints = false;
 
 var currentControlPoints = [];
+var hodographPoints = [];
 
 window.onload = function()
 {
@@ -41,6 +42,9 @@ window.onload = function()
 		return;
 	}
 
+	var point = centerPoint(event);
+	hodographPoints.push(point);
+
 	//add event listeners
 	deCanvas.addEventListener("click", handleLeftClick);
 	deCanvas.addEventListener("mousedown", handleMouseDown);
@@ -57,14 +61,29 @@ function handleLeftClick(event)
 	var point = mousePoint(event);
 	
 	currentControlPoints.push(point);
+
+	if(currentControlPoints.length > 1)
+		hodographPoints.push(hodograph());
 	fillCanvas("#2020FF");
+}
+
+function hodograph()
+{
+	var l = currentControlPoints.length-1;
+	var a = currentControlPoints[l];
+	var b = currentControlPoints[l-1];
+	var x = a.x - b.x;
+	var y = a.y - b.y;
+
+	return new point(x, y);
 }
 
 function fillCanvas(color)
 {
 	clear();
 	drawCurve();
-	drawControlPoints(color);
+	drawControlPoints(deContext, color);
+	drawControlPoints(hodContext, color);
 }
 
 function clear()
@@ -72,21 +91,21 @@ function clear()
 	deContext.clearRect(0, 0, deCanvas.width, deCanvas.height);
 }
 
-function drawControlPoints(color)
+function drawControlPoints(context, color)
 {
 	for (var i = 0; i < currentControlPoints.length; i++)
-		drawControlPoint(currentControlPoints[i], color);
+		drawControlPoint(context, currentControlPoints[i], color);
 }
 
-function drawControlPoint(point, color)
+function drawControlPoint(context, point, color)
 {
-	deContext.beginPath();
-	deContext.arc(point.x, point.y, radius, 0, 2 * Math.PI, false);
-	deContext.lineWidth = 2;
-	deContext.fillStyle = color;
-	deContext.fill();
-	deContext.strokeStyle = color;
-	deContext.stroke();
+	context.beginPath();
+	context.arc(point.x, point.y, radius, 0, 2 * Math.PI, false);
+	context.lineWidth = 2;
+	context.fillStyle = color;
+	context.fill();
+	context.strokeStyle = color;
+	context.stroke();
 }
 
 function drawCurve()
@@ -205,6 +224,15 @@ function mousePoint(event)
 	var x = event.clientX - deCanvasRect.left;
 	var y = event.clientY - deCanvasRect.top;
 
+	return new point(x, y);
+}
+
+function centerPoint(event)
+{
+	var hodCanvasRect = hodCanvas.getBoundingClientRect();
+	var x = (hodCanvasRect.left + hodCanvasRect.rigth)/2;
+	var y = (hodCanvasRect.top + hodCanvasRect.bottom)/2;
+	
 	return new point(x, y);
 }
 
