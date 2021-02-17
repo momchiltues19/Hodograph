@@ -1,12 +1,8 @@
 #deCasteljau {
-	width:500px;
-    height:500px;
 	border:2px solid #000000;
 	background: #ffffff;
 }
 #hodograph {
-	width:500px;
-    height:500px;
 	border:2px solid #d340ff;
 	background: #fbf1ff;
 }
