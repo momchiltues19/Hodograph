@@ -42,8 +42,7 @@ window.onload = function()
 		return;
 	}
 
-	var point = centerPoint(event);
-	hodographPoints.push(point);
+	drawControlPoint(hodContext, centerPoint(), "black");
 
 	//add event listeners
 	deCanvas.addEventListener("click", handleLeftClick);
@@ -69,11 +68,12 @@ function handleLeftClick(event)
 
 function hodograph()
 {
+	var cent = centerPoint();
 	var l = currentControlPoints.length-1;
 	var a = currentControlPoints[l];
 	var b = currentControlPoints[l-1];
-	var x = a.x - b.x;
-	var y = a.y - b.y;
+	var x = cent.x + a.x - b.x;
+	var y = cent.y + a.y - b.y;
 
 	return new point(x, y);
 }
@@ -81,20 +81,23 @@ function hodograph()
 function fillCanvas(color)
 {
 	clear();
-	drawCurve();
-	drawControlPoints(deContext, color);
-	drawControlPoints(hodContext, color);
+	drawCurve(deContext, currentControlPoints);
+	drawControlPoints(deContext, currentControlPoints, color);
+	drawCurve(hodContext, hodographPoints);
+	drawControlPoints(hodContext, hodographPoints, "black");
 }
 
 function clear()
 {
 	deContext.clearRect(0, 0, deCanvas.width, deCanvas.height);
+	hodContext.clearRect(0, 0, hodCanvas.width, hodCanvas.height);
+	drawControlPoint(hodContext, centerPoint(), "black");
 }
 
-function drawControlPoints(context, color)
+function drawControlPoints(context, points, color)
 {
-	for (var i = 0; i < currentControlPoints.length; i++)
-		drawControlPoint(context, currentControlPoints[i], color);
+	for (var i = 0; i < points.length; i++)
+		drawControlPoint(context, points[i], color);
 }
 
 function drawControlPoint(context, point, color)
@@ -108,19 +111,19 @@ function drawControlPoint(context, point, color)
 	context.stroke();
 }
 
-function drawCurve()
+function drawCurve(context, points)
 {
-	if (currentControlPoints.length == 0)
+	if (points.length == 0)
 		return;
 
-	deContext.strokeStyle = "black";
+	context.strokeStyle = "black";
 	for (var t = 0; t < 1; t += 0.001)
 	{
-		var point = deCasteljau(t, currentControlPoints);
-		deContext.strokeRect(point.x, point.y, 1, 1);
+		var point = deCasteljau(t, points);
+		context.strokeRect(point.x, point.y, 1, 1);
 	}
 	
-	connectControlPoints(currentControlPoints);
+	connectControlPoints(context, points);
 }
 
 function deCasteljau(t, controlPoints)
@@ -156,7 +159,7 @@ function deCasteljau(t, controlPoints)
 	return points[0];
 }
 
-function connectControlPoints(controlPoints)
+function connectControlPoints(context, controlPoints)
 {
 	var points = controlPoints;
 	if (points.length == 0)
@@ -165,15 +168,34 @@ function connectControlPoints(controlPoints)
 		return;
 	}
 
-	deContext.beginPath();
-	deContext.strokeStyle = "gray";
-	deContext.lineWidth = 1;
-
-	for (var i = 0; i < points.length - 1; ++i)
+	context.beginPath();
+	context.strokeStyle = "gray";
+	context.lineWidth = 1;
+	if(context == deContext)
 	{
-		deContext.moveTo(points[i].x, points[i].y);
-		deContext.lineTo(points[i + 1].x, points[i + 1].y);
-		deContext.stroke();
+		for (var i = 0; i < points.length - 1; ++i)
+		{
+			context.moveTo(points[i].x, points[i].y);
+			context.lineTo(points[i + 1].x, points[i + 1].y);
+			context.stroke();
+		}
+	}
+	else
+	{
+		var cent = centerPoint();
+		var l = points.length - 1;
+		for (var i = 0; i < l; ++i)
+		{
+			context.moveTo(points[i].x, points[i].y);
+			context.lineTo(points[i + 1].x, points[i + 1].y);
+			context.stroke();
+			context.moveTo(cent.x, cent.y);
+			context.lineTo(points[i].x, points[i].y);
+			context.stroke();
+		}
+		context.moveTo(cent.x, cent.y);
+		context.lineTo(points[l].x, points[l].y);
+		context.stroke();
 	}
 }
 
@@ -227,11 +249,10 @@ function mousePoint(event)
 	return new point(x, y);
 }
 
-function centerPoint(event)
+function centerPoint()
 {
-	var hodCanvasRect = hodCanvas.getBoundingClientRect();
-	var x = (hodCanvasRect.left + hodCanvasRect.rigth)/2;
-	var y = (hodCanvasRect.top + hodCanvasRect.bottom)/2;
+	var x = hodCanvas.width/2;
+	var y = hodCanvas.height/2;
 	
 	return new point(x, y);
 }
