@@ -1,15 +1,16 @@
 const radius = 4;
-const INVALID_IDX = -1;
+const INVALID_ID = -1;
 
 var deCanvas = null;
 var hodCanvas = null;
 var deContext = null;
 var hodContext = null;
 
-var movingControlPointIdx = INVALID_IDX;
+var movingIndex = INVALID_ID;
 var movingControlPoints = false;
+var fullClear = false;
 
-var currentControlPoints = [];
+var controlPoints = [];
 var hodographPoints = [];
 
 window.onload = function()
@@ -49,7 +50,7 @@ window.onload = function()
 	deCanvas.addEventListener("mousedown", handleMouseDown);
 	deCanvas.addEventListener("mousemove", handleMouseMove);
 	deCanvas.addEventListener("mouseup", handleMouseUp);
-	deCanvas.addEventListener("oncontextmenu", handleRightClick);
+	deCanvas.addEventListener("contextmenu", handleRightClick, false);
 }
 
 function handleLeftClick(event)
@@ -59,19 +60,99 @@ function handleLeftClick(event)
 	
 	var point = mousePoint(event);
 	
-	currentControlPoints.push(point);
+	controlPoints.push(point);
 
-	if(currentControlPoints.length > 1)
-		hodographPoints.push(hodograph());
-	fillCanvas("#2020FF");
+	if(controlPoints.length > 1)
+		hodographPoints.push(hodograph(controlPoints.length-1));
+	fillCanvas("#2299ab");
 }
 
-function hodograph()
+function handleMouseDown(event)
+{
+	if (!movingControlPoints)
+		return;
+	
+	var point = mousePoint(event);
+	movingIndex = INVALID_ID;
+
+	var radiusPow = Math.pow(radius, 2);
+	const tolerance = 5;
+	for (var i = 0; i < controlPoints.length; ++i)
+	{
+		var xExpr = Math.pow(point.x - controlPoints[i].x, 2);
+		var yExpr = Math.pow(point.y - controlPoints[i].y, 2);
+		if (xExpr + yExpr <= radiusPow + tolerance)
+		{
+			movingIndex = i;
+			break;
+		}
+	}
+}
+
+function handleMouseMove(event)
+{
+	
+	if (movingIndex == INVALID_ID)
+		return;
+
+	var point = mousePoint(event);
+	controlPoints[movingIndex] = point;
+	reHodograph();
+	fillCanvas("#1a9c5b");
+}
+
+function handleMouseUp(event)
+{
+	movingIndex = INVALID_ID;
+}
+
+function handleRightClick(event)
+{
+	event.preventDefault();
+	
+	var point = mousePoint(event);
+	var index = INVALID_ID;
+
+	var radiusPow = Math.pow(radius, 2);
+	const tolerance = 5;
+	for (var i = 0; i < controlPoints.length; i++)
+	{
+		var xExpr = Math.pow(point.x - controlPoints[i].x, 2);
+		var yExpr = Math.pow(point.y - controlPoints[i].y, 2);
+		if (xExpr + yExpr <= radiusPow + tolerance)
+		{
+			index = i;
+			break;
+		}
+	}
+	
+	if (index == INVALID_ID)
+		return false;
+	
+	controlPoints.splice(index, 1);
+	reHodograph();
+	if(!movingControlPoints)
+		fillCanvas("#2299ab");
+	else
+		fillCanvas("#1a9c5b");
+	
+	return false;
+}
+
+function mousePoint(event)
+{
+	var deCanvasRect = deCanvas.getBoundingClientRect();
+	var x = event.clientX - deCanvasRect.left;
+	var y = event.clientY - deCanvasRect.top;
+
+	return new point(x, y);
+}
+
+function hodograph(el)
 {
 	var cent = centerPoint();
-	var l = currentControlPoints.length-1;
-	var a = currentControlPoints[l];
-	var b = currentControlPoints[l-1];
+	var a = controlPoints[el];
+	var b = controlPoints[el-1];
 	var x = cent.x + a.x - b.x;
 	var y = cent.y + a.y - b.y;
 
@@ -81,8 +162,8 @@ function hodograph()
 function fillCanvas(color)
 {
 	clear();
-	drawCurve(deContext, currentControlPoints);
-	drawControlPoints(deContext, currentControlPoints, color);
+	drawCurve(deContext, controlPoints);
+	drawControlPoints(deContext, controlPoints, color);
 	drawCurve(hodContext, hodographPoints);
 	drawControlPoints(hodContext, hodographPoints, "black");
 }
@@ -91,7 +172,15 @@ function clear()
 {
 	deContext.clearRect(0, 0, deCanvas.width, deCanvas.height);
 	hodContext.clearRect(0, 0, hodCanvas.width, hodCanvas.height);
-	drawControlPoint(hodContext, centerPoint(), "black");
+	if(fullClear)
+	{
+		controlPoints = [];
+		hodographPoints = [];
+	}
+	else
+	{
+		drawControlPoint(hodContext, centerPoint(), "black");
+	}
 }
 
 function drawControlPoints(context, points, color)
@@ -126,19 +215,19 @@ function drawCurve(context, points)
 	connectControlPoints(context, points);
 }
 
-function deCasteljau(t, controlPoints)
+function deCasteljau(t, ctrlPoints)
 {
-	var parameters = new Array(controlPoints.length - 1).fill(t);
-	if (!Array.isArray(parameters) || parameters.length != (controlPoints.length - 1))
+	var parameters = new Array(ctrlPoints.length - 1).fill(t);
+	if (!Array.isArray(parameters) || parameters.length != (ctrlPoints.length - 1))
 	{
 		alert("Invalid input(calulate curve point)");
 		return;
 	}
 
-	if (controlPoints.length == 1)
-		return controlPoints[0];
+	if (ctrlPoints.length == 1)
+		return ctrlPoints[0];
 
-	var points = controlPoints.slice();
+	var points = ctrlPoints.slice();
 	var iteration = 0;
 	while (points.length != 1)
 	{
@@ -159,9 +248,9 @@ function deCasteljau(t, controlPoints)
 	return points[0];
 }
 
-function connectControlPoints(context, controlPoints)
+function connectControlPoints(context, ctrlPoints)
 {
-	var points = controlPoints;
+	var points = ctrlPoints;
 	if (points.length == 0)
 	{
 		alert("Control points missing");
@@ -199,54 +288,13 @@ function connectControlPoints(context, controlPoints)
 	}
 }
 
-function handleMouseDown(event)
+function reHodograph()
 {
-	if (!movingControlPoints)
-		return;
-
-	
-	var point = mousePoint(event);
-	movingControlPointIdx = INVALID_IDX;
-
-	var radiusPow = Math.pow(radius, 2);
-	const tolerance = 5;
-	for (var i = 0; i < currentControlPoints.length; ++i)
+	hodographPoints = [];
+	for(var i = 1; i < controlPoints.length; i++)
 	{
-		var xExpr = Math.pow(point.x - currentControlPoints[i].x, 2);
-		var yExpr = Math.pow(point.y - currentControlPoints[i].y, 2);
-		if (xExpr + yExpr <= radiusPow + tolerance)
-		{
-			movingControlPointIdx = i;
-			break;
-		}
+		hodographPoints.push(hodograph(i));
 	}
-}
-
-function handleMouseMove(event)
-{
-	addingControlPoints = true;
-	
-	if (movingControlPointIdx == INVALID_IDX)
-		return;
-
-	var point = mousePoint(event);
-	currentControlPoints[movingControlPointIdx] = point;
-	fillCanvas("#197419");
-}
-
-
-function handleMouseUp(event)
-{
-	movingControlPointIdx = INVALID_IDX;
-}
-
-function mousePoint(event)
-{
-	var deCanvasRect = deCanvas.getBoundingClientRect();
-	var x = event.clientX - deCanvasRect.left;
-	var y = event.clientY - deCanvasRect.top;
-
-	return new point(x, y);
 }
 
 function centerPoint()
@@ -259,16 +307,23 @@ function centerPoint()
 
 function toggleMoveState()
 {
+	if(!movingControlPoints)
+		document.documentElement.style.setProperty('--move', "#21b56b");
+	else
+		document.documentElement.style.setProperty('--move', "#37b2c4");
 	movingControlPoints= !movingControlPoints;
 	if(!movingControlPoints)
-		fillCanvas("#2020FF");
+		fillCanvas("#2299ab");
 	else
-		fillCanvas("#197419");
+		fillCanvas("#1a9c5b");
 }
 
-function handleRightClick(event)
+function toggleClear()
 {
-	
+	fullClear = true;
+	clear();
+	fullClear = false;
+	fillCanvas();
 }
 
 function point(x, y)
